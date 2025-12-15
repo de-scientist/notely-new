@@ -21,7 +21,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 const PRIMARY_TEXT_CLASS = "text-fuchsia-600 dark:text-fuchsia-500"; 
 const SECONDARY_TEXT_CLASS = "text-gray-600 dark:text-gray-400";
 
-// 🎯 FIX 2: Refine consistent, user-friendly date format options (Added 'short' style for month)
 const DATE_OPTIONS: Intl.DateTimeFormatOptions = {
     year: 'numeric',
     month: 'short', 
@@ -39,7 +38,7 @@ interface SharedEntry {
     content: string;
     pinned?: boolean;
     isPublic: boolean;
-    // 🎯 FIX 1: Use 'createdAt' and 'updatedAt' to match Prisma/Backend response
+    // CRITICAL FIX: Using 'createdAt' and 'updatedAt'
     createdAt: string; 
     updatedAt: string; 
     category: { name: string };
@@ -47,7 +46,7 @@ interface SharedEntry {
         firstName: string; 
         lastName: string; 
         username: string;
-        avatar?: string; // If this comes from the backend
+        avatar?: string;
     };
 }
 
@@ -76,7 +75,7 @@ export function SharedNotePage() {
         queryFn: async (): Promise<SharedEntry> => {
             if (!id) throw new Error("Note ID is missing.");
             
-            // Assuming your backend route is `/api/entries/public/:id` 
+            // Note: Uses the correct path `/entries/public/:id` as per backend definition
             const response = await api.get<PublicEntryResponse>(`/entries/public/${id}`);
             
             if (!response.data.entry) {
@@ -90,7 +89,7 @@ export function SharedNotePage() {
     });
 
     // ----------------------------------------------------------------------
-    // PDF Download Handler (Using dom-to-image-more) - No changes needed to logic
+    // PDF Download Handler (Using dom-to-image-more)
     // ----------------------------------------------------------------------
     const handleDownloadPdf = async () => {
         if (!entry || !noteContentRef.current) return;
@@ -146,7 +145,6 @@ export function SharedNotePage() {
     // 3. Error State (404, etc.)
     // ----------------------------------------------------------------------
     if (isError || !entry) {
-        // Axios error handling for status code
         const status = (error as any)?.response?.status;
         
         const errorMessage = status === 404
@@ -161,6 +159,7 @@ export function SharedNotePage() {
                 <p className="text-sm text-gray-500 dark:text-gray-500 mt-4">
                     The note may be private, deleted, or the share link is incorrect.
                 </p>
+                {/* User-requested link maintained */}
                 <a href="/" className={`mt-6 ${PRIMARY_TEXT_CLASS} hover:underline`}>Go to Homepage</a>
             </div>
         );
@@ -172,10 +171,10 @@ export function SharedNotePage() {
     return (
         <div className="max-w-4xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
             
-            {/* 🎯 The target element for PDF generation */}
+            {/* The target element for PDF generation */}
             <div 
                 ref={noteContentRef} 
-                className="bg-white p-8 dark:bg-gray-900" // Use dynamic bg for content, p-8 for padding
+                className="bg-white p-8 dark:bg-gray-900"
             > 
                 
                 <Card 
@@ -200,7 +199,7 @@ export function SharedNotePage() {
                             </p>
                         )}
                         
-                        {/* 🎯 FIX 3 & UI/UX: Author/Metadata block */}
+                        {/* Author/Metadata block */}
                         <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
                             <div className="flex items-center text-sm font-medium">
                                 <User className={`h-4 w-4 mr-2 ${PRIMARY_TEXT_CLASS}`} />
@@ -216,7 +215,7 @@ export function SharedNotePage() {
                     </CardHeader>
                     
                     <CardContent className="pt-6 border-t dark:border-gray-700">
-                        {/* 🎯 FIX 4: Corrected Date Properties (createdAt, updatedAt) */}
+                        {/* Fixed Date Properties Display */}
                         <div className="flex flex-wrap gap-x-6 gap-y-2 mb-8 text-sm text-gray-500 dark:text-gray-400">
                             <span className="flex items-center gap-1">
                                 <Calendar className="h-4 w-4" /> Created: 
@@ -232,7 +231,7 @@ export function SharedNotePage() {
                             </span>
                         </div>
 
-                        {/* Content: Now using react-markdown for rich text rendering */}
+                        {/* Content: Markdown Rendering */}
                         <div className="prose dark:prose-invert max-w-none prose-lg">
                             <ReactMarkdown>
                                 {entry.content}
@@ -242,7 +241,7 @@ export function SharedNotePage() {
                 </Card>
             </div>
             
-            {/* Download Button (Placed outside the PDF reference div to prevent inclusion) */}
+            {/* Download Button */}
             <div className="flex justify-center mt-8">
                 <Button 
                     onClick={handleDownloadPdf} 
@@ -257,6 +256,7 @@ export function SharedNotePage() {
                 <p>
                     You are viewing a publicly shared note. The content is read-only.
                 </p>
+                {/* User-requested link maintained */}
                 <a href="/" className={`mt-2 block ${PRIMARY_TEXT_CLASS} hover:underline font-medium`}>Return to your Notes</a>
             </footer>
         </div>
