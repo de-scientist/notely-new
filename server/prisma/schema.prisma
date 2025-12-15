@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String   @id @default(uuid()) @map("UserId")
+  firstName         String   @map("First_Name")
+  lastName          String   @map("Last_Name")
+  email             String   @unique @map("Email_Address")
+  username          String   @unique @map("User_Name")
+  password          String?  @map("Password")
+  avatar            String?  @default("") @map("Avatar")
+  dateJoined        DateTime @default(now()) @map("Date_Joined")
+  lastProfileUpdate DateTime @updatedAt @map("Last_Profile_Update")
+  isDeleted         Boolean  @default(false) @map("Is_Deleted")
+
+  provider          String?
+  providerId        String?
+  supabaseId        String   @unique
+
+  categories Category[]
+  entries    Entry[]
+  bookmarks  Bookmark[]
+  contacts   Contact[] // Added relation to Contact model
+
+  @@index([email])
+  @@index([username])
+  @@map("Users")
+}
+
+model Category {
+  id               String   @id @default(uuid()) @map("CategoryId")
+  name             String   @map("Name")
+  userId           String?  @map("UserId")
+  user             User?    @relation(fields: [userId], references: [id])
+  createdAt        DateTime @default(now()) @map("Date_Created")
+  updatedAt        DateTime @updatedAt @map("Last_Updated")
+
+  // Public / default / global flags
+  isDefault        Boolean  @default(false) @map("Is_Default")
+
+  // AI-related optional weight or score for suggestions
+  aiScore          Float?   @map("AI_Score")
+
+   description       String?  @map("Description")
+
+  // AI keywords to help auto-suggest categories
+  suggestedKeywords String?  @map("Suggested_Keywords")
+
+  entries          Entry[]
+
+  // Add two separate constraints:
+  @@unique([name, userId])               // for user-specific categories
+  @@unique([name])                       // for global categories
+
+  @@map("Categories")
+}
+
+
+model Entry {
+  id          String   @id @default(uuid()) @map("EntryId")
+  title       String   @map("Title")
+  synopsis    String   @map("Synopsis")
+  content     String   @map("Content") @db.Text
+  isDeleted   Boolean  @default(false) @map("Is_Deleted")
+  pinned      Boolean  @default(false) @map("Pinned")
+  isPublic    Boolean  @default(false) @map("Is_Public")
+  publicShareId String? @unique @map("Public_Share_Id")
+
+
+  userId      String   @map("UserId")
+  user        User     @relation(fields: [userId], references: [id])
+
+  categoryId  String   @map("CategoryId")
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  createdAt   DateTime @default(now()) @map("Date_Created")
+  updatedAt   DateTime @updatedAt @map("Last_Updated")
+
+  bookmarkedBy Bookmark[]
+
+
+  @@map("Entries")
+}
+
+model Bookmark {
+  id        String   @id @default(uuid()) @map("BookmarkId")
+
+  userId    String   @map("UserId")
+  user      User     @relation(fields: [userId], references: [id])
+
+  entryId   String   @map("EntryId")
+  entry     Entry    @relation(fields: [entryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  createdAt DateTime @default(now()) @map("Date_Saved")
+
+  @@unique([userId, entryId])
+  @@map("Bookmarks")
+}
+
+model ChatLog {
+  id         String   @id @default(cuid())
+  userId     String?  // optional if you track logged in users
+  query      String
+  reply      String
+  intent     String?  // optional, filled by backend NLP or simple routing
+  channel    String   @default("web") // "web" | "voice" | "api"
+  createdAt  DateTime @default(now())
+  metadata   String?
+  // Indexes for analytics
+  @@index([createdAt])
+  @@index([intent])
+
+  @@map("ChatLogs")
+}
+
+model Doc {
+  id        String   @id @default(cuid())
+  title     String
+  content   String   @db.Text
+  // We'll store embeddings as Json for now (array of floats).
+  embedding String?
+  source    String?  // optional: "help-center", "faq", "ui-text"
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model Contact {
+  id        String   @id @default(uuid()) @map("ContactId")
+  userId    String?  @map("UserId")
+  user      User?    @relation(fields: [userId], references: [id])
+  name      String   @map("Name")
+  email     String   @map("Email")
+  subject   String   @map("Subject")
+  message   String   @map("Message") @db.Text
+  createdAt DateTime @default(now()) @map("Date_Created")
+  
+  @@map("Contacts")
+}

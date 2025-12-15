@@ -1,0 +1,14 @@
+{
+  "files": [],
+  "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }],
+  "compilerOptions": {
+    "baseUrl": ".",
+    "jsx": "react-jsxdev",
+    "paths": {
+      "@/*": ["./src/*", "./*"]
+    },
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "types": ["node", "react", "jest"]
+  }
+}

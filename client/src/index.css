@@ -1,0 +1,164 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Updated to match design inspiration - dark-first, minimal aesthetic */
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", sans-serif;
+  --font-mono: "SF Mono", "Monaco", "Inconsolata", "Fira Mono", monospace;
+
+  /* Light theme - clean and minimal */
+  --background: oklch(0.985 0 0); /* Off-white */
+  --foreground: oklch(0.15 0 0); /* Near black */
+  --card: oklch(1 0 0); /* Pure white */
+  --card-foreground: oklch(0.15 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.15 0 0);
+  --primary: oklch(0.15 0 0); /* Near black */
+  --primary-foreground: oklch(0.985 0 0); /* Off-white */
+  --secondary: oklch(0.95 0 0);
+  --secondary-foreground: oklch(0.15 0 0);
+  --muted: oklch(0.95 0 0);
+  --muted-foreground: oklch(0.5 0 0);
+  --accent: oklch(0.95 0 0);
+  --accent-foreground: oklch(0.15 0 0);
+  --destructive: oklch(0.55 0.22 25);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.9 0 0);
+  --input: oklch(0.9 0 0);
+  --ring: oklch(0.15 0 0);
+  --radius: 0.5rem;
+
+  /* Chart colors */
+  --chart-1: oklch(0.65 0.2 250);
+  --chart-2: oklch(0.6 0.15 180);
+  --chart-3: oklch(0.55 0.18 150);
+  --chart-4: oklch(0.7 0.16 280);
+  --chart-5: oklch(0.75 0.14 60);
+}
+
+/* Dark theme - true black background for elegance */
+.dark {
+  --background: oklch(0.12 0 0); /* Near black */
+  --foreground: oklch(0.95 0 0); /* Off-white */
+  --card: oklch(0.15 0 0); /* Slightly lighter than background */
+  --card-foreground: oklch(0.95 0 0);
+  --popover: oklch(0.15 0 0);
+  --popover-foreground: oklch(0.95 0 0);
+  --primary: oklch(0.95 0 0); /* Off-white */
+  --primary-foreground: oklch(0.12 0 0); /* Near black */
+  --secondary: oklch(0.2 0 0);
+  --secondary-foreground: oklch(0.95 0 0);
+  --muted: oklch(0.2 0 0);
+  --muted-foreground: oklch(0.6 0 0);
+  --accent: oklch(0.2 0 0);
+  --accent-foreground: oklch(0.95 0 0);
+  --destructive: oklch(0.55 0.22 25);
+  --destructive-foreground: oklch(0.95 0 0);
+  --border: oklch(0.22 0 0);
+  --input: oklch(0.22 0 0);
+  --ring: oklch(0.6 0 0);
+
+  /* Chart colors for dark mode */
+  --chart-1: oklch(0.55 0.22 250);
+  --chart-2: oklch(0.5 0.18 180);
+  --chart-3: oklch(0.45 0.2 150);
+  --chart-4: oklch(0.6 0.19 280);
+  --chart-5: oklch(0.65 0.17 60);
+}
+
+@theme inline {
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    line-height: 1.6;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-semibold tracking-tight;
+  }
+}
+
+/* Smooth transitions for theme changes */
+* {
+  transition-property: background-color, border-color, color;
+  transition-duration: 200ms;
+  transition-timing-function: ease-in-out;
+}
+
+/* Reveal animation */
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.8s ease;
+}
+
+.reveal-visible {
+  opacity: 1;
+  transform: translateY(0px);
+}
+
+/* Hover Lift */
+.hover-lift {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+}
+
+/* Card soft pulse */
+.pulse-on-load {
+  animation: pulseIn 0.7s ease;
+}
+
+@keyframes pulseIn {
+  0% {
+    transform: scale(0.98);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
