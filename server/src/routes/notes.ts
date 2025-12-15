@@ -13,9 +13,7 @@ function generateShareId() {
   return crypto.randomBytes(8).toString("hex") // 16-char slug
 }
 
-/**
- * Ensure unique publicShareId
- */
+/** Ensure unique publicShareId */
 async function generateUniqueShareId(): Promise<string> {
   const MAX_ATTEMPTS = 5
   let attempts = 0
@@ -28,10 +26,11 @@ async function generateUniqueShareId(): Promise<string> {
   throw new Error("Failed to generate a unique publicShareId after multiple attempts.")
 }
 
+// ----------------------
 // POST /api/notes/generate
-// Requires authentication via requireAuth middleware
+// ----------------------
 router.post("/generate", requireAuth, async (req: Request, res: Response) => {
-  const userId = req.user!.id // Authenticated user from middleware
+  const userId = req.user!.id
 
   const { title, synopsis, audience, tone, length, save, categoryId, isPublic } = req.body as {
     title?: string
@@ -49,7 +48,6 @@ router.post("/generate", requireAuth, async (req: Request, res: Response) => {
   }
 
   try {
-    // Build AI options object
     const options: GenerateNoteOptions = {
       ...(title && { title }),
       ...(synopsis && { synopsis }),
@@ -59,11 +57,9 @@ router.post("/generate", requireAuth, async (req: Request, res: Response) => {
     }
 
     const generatedNote: string = await generateFullNote(options)
-
     let savedEntry = null
 
     if (save && categoryId) {
-      // Fallback title from generated note
       const fallbackTitle = generatedNote.split("\n")[0].replace(/^[#>\-*]+\s*/, "").trim().substring(0, 100)
       const safeTitle = title ?? fallbackTitle
       const safeSynopsis = synopsis ?? safeTitle
@@ -94,6 +90,57 @@ router.post("/generate", requireAuth, async (req: Request, res: Response) => {
   } catch (error) {
     console.error("AI Note generation error:", error)
     return res.status(500).json({ error: "Failed to generate or save note." })
+  }
+})
+
+// ----------------------
+// PATCH /api/notes/:id
+// Update AI-generated note
+// ----------------------
+router.patch("/:id", requireAuth, async (req: Request<{ id: string }, {}, any>, res: Response) => {
+  const userId = req.user!.id
+  const { id } = req.params
+  const { title, synopsis, content, categoryId, isPublic } = req.body
+
+  try {
+    const existing = await prisma.entry.findFirst({ where: { id, userId } })
+    if (!existing) return res.status(404).json({ message: "Note not found." })
+
+    const updateData: any = {}
+
+    if (title !== undefined) updateData.title = title
+    if (synopsis !== undefined) updateData.synopsis = synopsis
+    if (content !== undefined) updateData.content = content
+    if (categoryId !== undefined) {
+      const valid = await prisma.category.findUnique({ where: { id: categoryId } })
+      if (!valid) return res.status(404).json({ message: "Invalid categoryId." })
+      updateData.categoryId = categoryId
+    }
+
+    // Handle public toggle
+    if (isPublic !== undefined) {
+      updateData.isPublic = isPublic
+
+      if (isPublic && !existing.publicShareId) {
+        // Generate new publicShareId if it doesn’t exist
+        updateData.publicShareId = await generateUniqueShareId()
+      }
+
+      if (!isPublic) {
+        updateData.publicShareId = null
+      }
+    }
+
+    const updated = await prisma.entry.update({
+      where: { id },
+      data: updateData,
+      select: { id: true, publicShareId: true, title: true, synopsis: true, content: true },
+    })
+
+    return res.json({ entry: updated })
+  } catch (err) {
+    console.error("AI Note update error:", err)
+    return res.status(500).json({ error: "Failed to update note." })
   }
 })
 
