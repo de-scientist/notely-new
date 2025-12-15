@@ -44,20 +44,23 @@ const getInitials = (
   const first = firstName?.trim()
   const last = lastName?.trim()
 
-  // Both names present → first letters
+  // Case 1: Properly separated names
   if (first && last) {
     return `${first[0]}${last[0]}`.toUpperCase()
   }
 
-  // Only one name present → first two letters of that name
-  const single = first || last
-  if (single) {
-    return single.slice(0, 2).toUpperCase()
+  // Case 2: firstName contains full name (e.g. "Mark Kinyanjui")
+  if (first) {
+    const parts = first.split(/\s+/).filter(Boolean)
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+    }
   }
 
-  // Absolute fallback (should be rare)
+  // Final fallback (should be extremely rare)
   return "UU"
 }
+
 
 
 function UserNav() {
