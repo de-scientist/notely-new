@@ -91,8 +91,9 @@ function UserNav() {
               />
             )}
             <AvatarFallback className="bg-primary text-primary-foreground font-semibold text-xs">
-              {getInitials(user.firstName, user.lastName)}
-            </AvatarFallback>
+  {getInitials(user.firstName, user.lastName)}
+</AvatarFallback>
+
           </Avatar>
         </div>
       </DropdownMenuTrigger>
