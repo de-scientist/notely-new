@@ -37,10 +37,28 @@ import {
 } from "./components/ui/dropdown-menu"
 import { LogOut, Settings, Feather } from "lucide-react"
 
-const getInitials = (firstName: string | undefined, lastName: string | undefined): string => {
-  if (!firstName || !lastName) return "NN"
-  return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
+const getInitials = (
+  firstName?: string,
+  lastName?: string
+): string => {
+  const first = firstName?.trim()
+  const last = lastName?.trim()
+
+  if (first && last) {
+    return `${first[0]}${last[0]}`.toUpperCase()
+  }
+
+  if (first) {
+    return first[0].toUpperCase()
+  }
+
+  if (last) {
+    return last[0].toUpperCase()
+  }
+
+  return "U"
 }
+
 
 function UserNav() {
   const { user, clear } = useAuthStore()
