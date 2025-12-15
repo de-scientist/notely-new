@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom'; 
 import { useRef } from 'react'; 
 import { api } from '../lib/api';
-import { Loader2, NotebookPen, Lock, Tag, Calendar, Clock, Star, Download } from 'lucide-react';
+import { Loader2, NotebookPen, Lock, Tag, Calendar, Clock, Star, Download, User } from 'lucide-react';
 
 // External Libraries for new features
 import ReactMarkdown from 'react-markdown'; // 🎯 Markdown rendering
@@ -13,17 +13,18 @@ import jsPDF from 'jspdf'; // 🎯 PDF creation
 import * as domToImage from 'dom-to-image-more';
 
 // UI Components (assuming these are defined in your project)
+// Assuming these paths are correct for your UI library
 import { Button } from "../components/ui/button"; 
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 
-// The broken import './SharedNotePage.css' has been removed.
 const PRIMARY_TEXT_CLASS = "text-fuchsia-600 dark:text-fuchsia-500"; 
+const SECONDARY_TEXT_CLASS = "text-gray-600 dark:text-gray-400";
 
-// 🎯 FIX: Define consistent, user-friendly date format options
+// 🎯 FIX 2: Refine consistent, user-friendly date format options (Added 'short' style for month)
 const DATE_OPTIONS: Intl.DateTimeFormatOptions = {
     year: 'numeric',
-    month: 'long',
+    month: 'short', 
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
@@ -38,14 +39,15 @@ interface SharedEntry {
     content: string;
     pinned?: boolean;
     isPublic: boolean;
-    dateCreated: string;
-    lastUpdated: string;
+    // 🎯 FIX 1: Use 'createdAt' and 'updatedAt' to match Prisma/Backend response
+    createdAt: string; 
+    updatedAt: string; 
     category: { name: string };
     user: { 
         firstName: string; 
         lastName: string; 
         username: string;
-        avatar?: string;
+        avatar?: string; // If this comes from the backend
     };
 }
 
@@ -74,7 +76,8 @@ export function SharedNotePage() {
         queryFn: async (): Promise<SharedEntry> => {
             if (!id) throw new Error("Note ID is missing.");
             
-            const response = await api.get<PublicEntryResponse>(`/public/entries/${id}`);
+            // Assuming your backend route is `/api/entries/public/:id` 
+            const response = await api.get<PublicEntryResponse>(`/entries/public/${id}`);
             
             if (!response.data.entry) {
                 throw new Error("Invalid response structure from server.");
@@ -87,46 +90,37 @@ export function SharedNotePage() {
     });
 
     // ----------------------------------------------------------------------
-    // 🎯 PDF Download Handler (Using dom-to-image-more)
+    // PDF Download Handler (Using dom-to-image-more) - No changes needed to logic
     // ----------------------------------------------------------------------
     const handleDownloadPdf = async () => {
         if (!entry || !noteContentRef.current) return;
 
-        // Use dom-to-image-more to get the image data URL
         const imgData = await domToImage.toPng(noteContentRef.current, {
-            // Use a higher scale for better resolution in the PDF
             quality: 1,
             cacheBust: true,
-            // Ensure background is explicitly white for clean capture, regardless of dark mode
             bgcolor: 'white', 
         });
 
-        // Use the title for the filename
         const filename = `${entry.title.replace(/[^a-z0-9]/gi, '_')}.pdf`;
         
         const pdf = new jsPDF('p', 'mm', 'a4');
-        const imgWidth = 210; // A4 width in mm
-        const pageHeight = 297; // A4 height in mm
+        const imgWidth = 210; 
+        const pageHeight = 297; 
         
-        // Calculate image height while maintaining aspect ratio
         const img = new Image();
         img.src = imgData;
         
-        // Wait for image dimensions to be available
         await new Promise<void>((resolve) => {
             img.onload = () => resolve();
         });
 
-        // The captured image size
         const imgHeight = img.height * imgWidth / img.width;
         let heightLeft = imgHeight;
         let position = 0; 
 
-        // Add the first page image
         pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
         heightLeft -= pageHeight;
 
-        // Loop for multi-page documents (for long notes)
         while (heightLeft > 0) { 
             position = heightLeft - imgHeight;
             pdf.addPage();
@@ -152,19 +146,20 @@ export function SharedNotePage() {
     // 3. Error State (404, etc.)
     // ----------------------------------------------------------------------
     if (isError || !entry) {
+        // Axios error handling for status code
         const status = (error as any)?.response?.status;
         
         const errorMessage = status === 404
             ? "Note not found or link is invalid." 
-            : "An error occurred while fetching the shared note."; 
+            : "An unexpected error occurred while fetching the shared note."; 
             
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8">
                 <Lock className="h-12 w-12 text-red-500 mb-4" />
-                <h1 className="text-2xl font-bold dark:text-white mb-2">Error Viewing Note</h1>
+                <h1 className="text-2xl font-bold dark:text-white mb-2">Access Denied</h1>
                 <p className="text-lg text-gray-600 dark:text-gray-400">{errorMessage}</p>
                 <p className="text-sm text-gray-500 dark:text-gray-500 mt-4">
-                    Please check the URL or contact the owner.
+                    The note may be private, deleted, or the share link is incorrect.
                 </p>
                 <a href="/" className={`mt-6 ${PRIMARY_TEXT_CLASS} hover:underline`}>Go to Homepage</a>
             </div>
@@ -180,7 +175,7 @@ export function SharedNotePage() {
             {/* 🎯 The target element for PDF generation */}
             <div 
                 ref={noteContentRef} 
-                className="bg-white p-8 pdf-capture" // Added p-8 and ensured bg-white
+                className="bg-white p-8 dark:bg-gray-900" // Use dynamic bg for content, p-8 for padding
             > 
                 
                 <Card 
@@ -188,40 +183,57 @@ export function SharedNotePage() {
                 >
                     <CardHeader className="pb-4">
                         <div className="flex items-start justify-between">
-                            <CardTitle className="text-3xl font-extrabold dark:text-white flex items-center gap-3">
-                                <NotebookPen className={`h-7 w-7 ${PRIMARY_TEXT_CLASS}`} />
+                            <CardTitle className="text-4xl font-extrabold text-gray-900 dark:text-white flex items-center gap-3 leading-tight">
+                                <NotebookPen className={`h-8 w-8 ${PRIMARY_TEXT_CLASS}`} />
                                 {entry.title}
                             </CardTitle>
                             {entry.pinned && (
-                                <div className="text-yellow-500 flex items-center gap-1 opacity-70">
+                                <div className="text-yellow-500 flex items-center gap-1 opacity-80 mt-1">
                                     <Star className="h-5 w-5 fill-current" />
-                                    <span className="text-sm">Pinned</span>
+                                    <span className="text-sm font-semibold">PINNED</span>
                                 </div>
                             )}
                         </div>
                         {entry.synopsis && (
-                            <p className="mt-2 text-lg text-gray-600 dark:text-gray-400 italic border-l-4 pl-4 border-fuchsia-300 dark:border-fuchsia-700">
+                            <p className={`mt-3 text-lg ${SECONDARY_TEXT_CLASS} italic border-l-4 pl-4 border-fuchsia-300 dark:border-fuchsia-700`}>
                                 {entry.synopsis}
                             </p>
                         )}
+                        
+                        {/* 🎯 FIX 3 & UI/UX: Author/Metadata block */}
+                        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+                            <div className="flex items-center text-sm font-medium">
+                                <User className={`h-4 w-4 mr-2 ${PRIMARY_TEXT_CLASS}`} />
+                                <span className="text-gray-700 dark:text-gray-300 mr-4">
+                                    Author: <strong className={`font-semibold ${PRIMARY_TEXT_CLASS}`}>{entry.user.firstName} {entry.user.lastName}</strong>
+                                </span>
+                                
+                                <Badge variant="default" className="flex items-center gap-1 bg-fuchsia-100 text-fuchsia-700 hover:bg-fuchsia-100 dark:bg-fuchsia-900 dark:text-fuchsia-300">
+                                    <Tag className="h-3.5 w-3.5" /> {entry.category.name}
+                                </Badge>
+                            </div>
+                        </div>
                     </CardHeader>
                     
                     <CardContent className="pt-6 border-t dark:border-gray-700">
-                        {/* Metadata */}
-                        <div className="flex flex-wrap gap-4 mb-6 text-sm text-gray-500 dark:text-gray-400">
-                            <Badge variant="secondary" className="flex items-center gap-1">
-                                <Tag className="h-3.5 w-3.5" /> {entry.category.name}
-                            </Badge>
+                        {/* 🎯 FIX 4: Corrected Date Properties (createdAt, updatedAt) */}
+                        <div className="flex flex-wrap gap-x-6 gap-y-2 mb-8 text-sm text-gray-500 dark:text-gray-400">
                             <span className="flex items-center gap-1">
-                                <Calendar className="h-3.5 w-3.5" /> Created: **{new Date(entry.dateCreated).toLocaleTimeString(undefined, DATE_OPTIONS)}**
+                                <Calendar className="h-4 w-4" /> Created: 
+                                <strong className="ml-1 text-gray-700 dark:text-gray-300">
+                                    {new Date(entry.createdAt).toLocaleTimeString(undefined, DATE_OPTIONS)}
+                                </strong>
                             </span>
                             <span className="flex items-center gap-1">
-                                <Clock className="h-3.5 w-3.5" /> Updated: **{new Date(entry.lastUpdated).toLocaleTimeString(undefined, DATE_OPTIONS)}**
+                                <Clock className="h-4 w-4" /> Last Updated: 
+                                <strong className="ml-1 text-gray-700 dark:text-gray-300">
+                                    {new Date(entry.updatedAt).toLocaleTimeString(undefined, DATE_OPTIONS)}
+                                </strong>
                             </span>
                         </div>
 
-                        {/* 🎯 Content: Now using react-markdown for rich text rendering */}
-                        <div className="prose dark:prose-invert max-w-none">
+                        {/* Content: Now using react-markdown for rich text rendering */}
+                        <div className="prose dark:prose-invert max-w-none prose-lg">
                             <ReactMarkdown>
                                 {entry.content}
                             </ReactMarkdown>
@@ -234,19 +246,18 @@ export function SharedNotePage() {
             <div className="flex justify-center mt-8">
                 <Button 
                     onClick={handleDownloadPdf} 
-                    className="bg-fuchsia-600 hover:bg-fuchsia-700 dark:bg-fuchsia-500 dark:hover:bg-fuchsia-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition-colors"
+                    className="bg-fuchsia-600 hover:bg-fuchsia-700 dark:bg-fuchsia-500 dark:hover:bg-fuchsia-600 text-white font-semibold py-3 px-6 text-base rounded-lg shadow-xl transition-colors"
                 >
                     <Download className="h-5 w-5 mr-2" />
-                    Download as PDF
+                    Download Note as PDF
                 </Button>
             </div>
             
-            <footer className="mt-8 text-center text-sm text-gray-500 dark:text-gray-500">
+            <footer className="mt-12 text-center text-sm text-gray-500 dark:text-gray-500">
                 <p>
-                    This note is publicly shared by the author.
-                    {/* Add author info if available */}
-                    {entry.user && ` Authored by ${entry.user.firstName} ${entry.user.lastName} (${entry.user.username}).`}
+                    You are viewing a publicly shared note. The content is read-only.
                 </p>
+                <a href="/" className={`mt-2 block ${PRIMARY_TEXT_CLASS} hover:underline font-medium`}>Return to your Notes</a>
             </footer>
         </div>
     );
