@@ -121,15 +121,16 @@ router.post("/", async (req: Request<{}, {}, EntryCreationData>, res, next) => {
         // 2. Attempt to create the entry
         entry = await prisma.entry.create({
           data: {
-            title,
-            synopsis,
-            content,
-            userId,
-            categoryId,
-            pinned: pinned ?? false,
-            isPublic: isPublic ?? false,
-            publicShareId,
-          },
+  title,
+  synopsis,
+  content,
+  userId,
+  categoryId,
+  pinned: pinned ?? false,
+  isPublic: isPublic ?? false,
+  ...(isPublic ? { publicShareId } : {}),
+},
+
           include: entryInclude,
         })
       } catch (error: any) {
