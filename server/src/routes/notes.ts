@@ -30,7 +30,9 @@ async function generateUniqueShareId(): Promise<string> {
 // POST /api/notes/generate
 // ----------------------
 router.post("/generate", requireAuth, async (req: Request, res: Response) => {
-  const userId = req.user!.id
+  const user = req.user
+  if (!user) return res.status(401).json({ error: "Unauthorized" })
+  const userId = user.id
 
   const { title, synopsis, audience, tone, length, save, categoryId, isPublic } = req.body as {
     title?: string
