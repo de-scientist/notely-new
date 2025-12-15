@@ -363,45 +363,31 @@ export function NotesListPage() {
 
     // --- FIX APPLIED HERE ---
     const togglePublicMutation = useMutation({
-        mutationFn: async ({ id, isPublic }: { id: string; isPublic: boolean }) => {
-            // 1. Get current list from cache
-            const allEntriesData = queryClient.getQueryData(['entries']) as { entries: Entry[] } | undefined;
-            
-            // 2. Find the entry we are about to update
-            const currentEntry = allEntriesData?.entries.find(e => e.id === id);
+  mutationFn: async ({ id, isPublic }: { id: string; isPublic: boolean }) => {
+    const allEntriesData = queryClient.getQueryData(['entries']) as { entries: Entry[] } | undefined;
+    const currentEntry = allEntriesData?.entries.find(e => e.id === id);
 
-            if (!currentEntry) {
-                throw new Error("Cannot find note to toggle public status.");
-            }
-            
-            // 3. Construct the full payload for the PATCH request
-            const payload = {
-                // Spread all existing data to satisfy backend requirements for a complete object
-                ...currentEntry, 
-                isPublic: isPublic,
-                // If the backend expects categoryId instead of the full category object, 
-                // you would need to adjust the structure here. 
-                // We must remove the 'category' object since the backend PATCH endpoint 
-                // often expects a flat entry object or a categoryId. 
-                categoryId: currentEntry.category.id,
-            };
-            
-            // Remove the nested category object to match a typical flat API structure
-            delete (payload as any).category; 
+    if (!currentEntry) throw new Error("Cannot find note to toggle public status.");
 
-            // 4. Send the updated payload
-            await api.patch(`/entries/${id}`, payload);
-        },
-        onSuccess: (_, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['entries'] });
-            toast.success(`Note set to ${variables.isPublic ? 'Public' : 'Private'}.`);
-        },
-        onError: (error) => {
-            console.error("Public toggle error:", error);
-            // The 500 error will now be caught here, but the cause should be fixed.
-            toast.error("Failed to change sharing status. Check server logs if this persists.");
-        },
-    });
+    const payload = {
+      ...currentEntry,
+      isPublic,
+      categoryId: currentEntry.category.id,
+    };
+    delete (payload as any).category; // remove nested object
+
+    await api.patch(`/entries/${id}`, payload);
+  },
+  onSuccess: (_, variables) => {
+    queryClient.invalidateQueries({ queryKey: ['entries'] });
+    toast.success(`Note set to ${variables.isPublic ? 'Public' : 'Private'}.`);
+  },
+  onError: (error) => {
+    console.error("Public toggle error:", error);
+    toast.error("Failed to change sharing status. Check server logs if this persists.");
+  },
+});
+
 
 
     // --- NON-HOOK FUNCTION ---
