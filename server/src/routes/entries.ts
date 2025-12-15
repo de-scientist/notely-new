@@ -8,16 +8,15 @@ const prisma = new PrismaClient()
 const router = Router()
 
 // ----------------------------------------------------------------------
-// PUBLIC ROUTE — Access public entries without authentication
+// 🎯 PUBLIC ROUTE
 // ----------------------------------------------------------------------
-router.get("/public/entries/:id", async (req: Request<{ id: string }>, res) => {
+router.get("/public/entries/:id", async (req: Request<{ id: string }>, res, next) => {
   try {
     const { id } = req.params
+
     const entry = await prisma.entry.findUnique({
       where: { id },
-      include: {
-        category: { select: { id: true, name: true } },
-      },
+      include: { category: { select: { id: true, name: true } } },
     })
 
     if (!entry || !entry.isPublic) {
@@ -37,7 +36,7 @@ router.get("/public/entries/:id", async (req: Request<{ id: string }>, res) => {
 router.use(requireAuth)
 
 // ----------------------------------------------------------------------
-// TYPE INTERFACES
+// TYPES
 // ----------------------------------------------------------------------
 interface EntryCreationData {
   title: string
@@ -63,7 +62,22 @@ interface EntryUpdateData {
 const entryInclude = { category: { select: { id: true, name: true } } }
 
 function generateShareId() {
-  return crypto.randomBytes(8).toString("hex") // 16-char slug
+  return crypto.randomBytes(8).toString("hex")
+}
+
+/**
+ * Generate a unique publicShareId safely with retries
+ */
+async function generateUniqueShareId(): Promise<string> {
+  const MAX_ATTEMPTS = 5
+  let attempts = 0
+  while (attempts < MAX_ATTEMPTS) {
+    attempts++
+    const candidate = generateShareId()
+    const conflict = await prisma.entry.findUnique({ where: { publicShareId: candidate } })
+    if (!conflict) return candidate
+  }
+  throw new Error("Failed to generate a unique publicShareId after multiple attempts.")
 }
 
 // ----------------------------------------------------------------------
@@ -74,45 +88,29 @@ router.post("/", async (req: Request<{}, {}, EntryCreationData>, res, next) => {
     const userId = req.user!.id
     const { title, synopsis, content, categoryId, pinned, isPublic } = req.body
 
-    if (!title || !synopsis || !content || !categoryId) {
+    if (!title || !synopsis || !content || !categoryId)
       return res.status(400).json({ message: "Title, synopsis, content, and categoryId are required." })
-    }
 
     const categoryExists = await prisma.category.findUnique({ where: { id: categoryId } })
     if (!categoryExists) return res.status(404).json({ message: "Invalid categoryId provided." })
 
-    let entry = null
     let publicShareId: string | null = null
-    const MAX_ATTEMPTS = 5
-    let attempts = 0
+    if (isPublic) publicShareId = await generateUniqueShareId()
 
-    while (!entry && attempts < MAX_ATTEMPTS) {
-      attempts++
-      publicShareId = isPublic ? generateShareId() : null
-      try {
-        entry = await prisma.entry.create({
-          data: {
-            title,
-            synopsis,
-            content,
-            userId,
-            categoryId,
-            pinned: pinned ?? false,
-            isPublic: isPublic ?? false,
-            ...(isPublic ? { publicShareId } : {}),
-          },
-          include: entryInclude,
-        })
-      } catch (error: any) {
-        if (error.code === "P2002" && error.meta?.target.includes("publicShareId")) {
-          console.warn(`Conflict on publicShareId: ${publicShareId}. Retrying... (Attempt ${attempts})`)
-          continue
-        }
-        throw error
-      }
-    }
+    const entry = await prisma.entry.create({
+      data: {
+        title,
+        synopsis,
+        content,
+        userId,
+        categoryId,
+        pinned: pinned ?? false,
+        isPublic: isPublic ?? false,
+        ...(isPublic ? { publicShareId } : {}),
+      },
+      include: entryInclude,
+    })
 
-    if (!entry) return res.status(500).json({ message: "Could not create entry due to persistent ID conflict." })
     return res.status(201).json({ entry })
   } catch (err) {
     next(err)
@@ -171,7 +169,6 @@ router.get("/:id", async (req, res, next) => {
       where: { id, userId, isDeleted: false },
       include: entryInclude,
     })
-
     if (!entry) return res.status(404).json({ message: "Entry not found." })
     return res.json({ entry })
   } catch (err) {
@@ -180,7 +177,7 @@ router.get("/:id", async (req, res, next) => {
 })
 
 // ----------------------------------------------------------------------
-// UPDATE ENTRY
+// UPDATE ENTRY (AUTO REGENERATE SHARE ID)
 // ----------------------------------------------------------------------
 router.patch("/:id", async (req: Request<{ id: string }, {}, EntryUpdateData>, res, next) => {
   try {
@@ -206,8 +203,12 @@ router.patch("/:id", async (req: Request<{ id: string }, {}, EntryUpdateData>, r
 
     if (isPublic !== undefined) {
       updateData.isPublic = isPublic
-      if (isPublic && !existing.publicShareId) updateData.publicShareId = generateShareId()
-      if (!isPublic) updateData.publicShareId = null
+      if (isPublic) {
+        // Always generate a new share ID if making public (even if already public)
+        updateData.publicShareId = await generateUniqueShareId()
+      } else {
+        updateData.publicShareId = null
+      }
     }
 
     const entry = await prisma.entry.update({
@@ -223,7 +224,7 @@ router.patch("/:id", async (req: Request<{ id: string }, {}, EntryUpdateData>, r
 })
 
 // ----------------------------------------------------------------------
-// RESTORE ENTRY FROM TRASH
+// RESTORE ENTRY
 // ----------------------------------------------------------------------
 router.patch("/restore/:id", async (req, res, next) => {
   try {
@@ -245,7 +246,7 @@ router.patch("/restore/:id", async (req, res, next) => {
 })
 
 // ----------------------------------------------------------------------
-// SOFT DELETE ENTRY
+// SOFT DELETE
 // ----------------------------------------------------------------------
 router.delete("/:id", async (req, res, next) => {
   try {
@@ -267,7 +268,7 @@ router.delete("/:id", async (req, res, next) => {
 })
 
 // ----------------------------------------------------------------------
-// PERMANENT DELETE ENTRY
+// PERMANENT DELETE
 // ----------------------------------------------------------------------
 router.delete("/permanent/:id", async (req, res, next) => {
   try {
@@ -290,13 +291,11 @@ router.post("/:id/bookmark", async (req, res, next) => {
   try {
     const userId = req.user!.id
     const { id: entryId } = req.params
-
     await prisma.bookmark.upsert({
       where: { userId_entryId: { userId, entryId } },
       update: {},
       create: { userId, entryId },
     })
-
     return res.json({ message: "Entry bookmarked." })
   } catch (err) {
     next(err)
@@ -307,7 +306,6 @@ router.delete("/:id/bookmark", async (req, res, next) => {
   try {
     const userId = req.user!.id
     const { id: entryId } = req.params
-
     await prisma.bookmark.delete({ where: { userId_entryId: { userId, entryId } } })
     return res.json({ message: "Bookmark removed." })
   } catch (err) {
