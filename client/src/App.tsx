@@ -44,19 +44,19 @@ const getInitials = (
   const first = firstName?.trim()
   const last = lastName?.trim()
 
+  // Both names present → first letters
   if (first && last) {
     return `${first[0]}${last[0]}`.toUpperCase()
   }
 
-  if (first) {
-    return first[0].toUpperCase()
+  // Only one name present → first two letters of that name
+  const single = first || last
+  if (single) {
+    return single.slice(0, 2).toUpperCase()
   }
 
-  if (last) {
-    return last[0].toUpperCase()
-  }
-
-  return "U"
+  // Absolute fallback (should be rare)
+  return "UU"
 }
 
 
